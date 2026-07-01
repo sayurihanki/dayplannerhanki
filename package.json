@@ -1,0 +1,22 @@
+{
+  "name": "day-planner-v2",
+  "private": true,
+  "version": "2.0.0",
+  "type": "module",
+  "description": "Notes-driven day planner with a deterministic scheduler, advisory AI ordering, local-first storage, and .ics import/export.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "vite"
+  },
+  "dependencies": {
+    "ical.js": "^2.1.0"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.41",
+    "tailwindcss": "^3.4.10",
+    "vite": "^5.4.0"
+  }
+}
