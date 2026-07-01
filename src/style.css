@@ -94,6 +94,13 @@
   .block-ics:hover { color: #7c3aed; }
   .block-ics:focus-visible { opacity: 1; }
   .block-card.is-downloadable:hover .block-ics { opacity: 1; }
+  .complete-btn { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid #cbd5e1; background: white; color: transparent; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 150ms ease, border-color 150ms ease, background 150ms ease, color 150ms ease; cursor: pointer; }
+  .block-card.is-flex:hover .complete-btn { opacity: 1; }
+  .complete-btn:hover { border-color: #10b981; color: #10b981; }
+  .complete-btn.is-done { opacity: 1; background: #10b981; border-color: #10b981; color: white; }
+  .complete-btn:focus-visible { opacity: 1; outline: none; box-shadow: 0 0 0 3px rgba(16,185,129,0.35); }
+  .block-card.is-completed { border-left: 3px solid #10b981; }
+  .block-card.is-completed .block-title { text-decoration: line-through; text-decoration-thickness: 1px; text-decoration-color: rgba(0,0,0,0.30); opacity: 0.55; }
   .templates-menu { position: absolute; right: 0; top: calc(100% + 6px); background: white; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 8px 24px rgba(15,23,42,0.12); min-width: 260px; max-width: 340px; z-index: 50; overflow: hidden; animation: blockFadeIn 150ms ease-out; }
   .templates-menu .tpl-item { padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; font-size: 0.8125rem; }
   .templates-menu .tpl-item:hover { background: #f8fafc; }

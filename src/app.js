@@ -253,6 +253,7 @@ Deep work in the morning, keep the afternoon lighter`,
     blocks: null, unscheduled: [], rationale: null, engine: null,
     flexTodos: null, fixedBlocks: null, planContext: null, editingItemId: null,
     templates: [], templatesOpen: false, pendingDeleteKey: null, namingTemplate: false, undo: [],
+    completed: new Set(),
   };
   function calcCapacity() {
     const sM = parseHHMM(state.startTime), eM = parseHHMM(state.endTime);
@@ -287,7 +288,7 @@ Deep work in the morning, keep the afternoon lighter`,
     } catch (e) {}
     try {
       const lp = await storage.get(STORAGE_KEYS.lastPlan);
-      if (lp && lp.value) { const v = JSON.parse(lp.value); if (v && Array.isArray(v.blocks) && v.planContext) { state.blocks = v.blocks; state.unscheduled = v.unscheduled || []; state.rationale = v.rationale || null; state.engine = v.engine || null; state.flexTodos = v.flexTodos || null; state.fixedBlocks = v.fixedBlocks || null; state.planContext = v.planContext; } }
+      if (lp && lp.value) { const v = JSON.parse(lp.value); if (v && Array.isArray(v.blocks) && v.planContext) { state.blocks = v.blocks; state.unscheduled = v.unscheduled || []; state.rationale = v.rationale || null; state.engine = v.engine || null; state.flexTodos = v.flexTodos || null; state.fixedBlocks = v.fixedBlocks || null; state.planContext = v.planContext; state.completed = new Set(Array.isArray(v.completed) ? v.completed : []); } }
     } catch (e) {}
     try {
       const tpls = await storage.list('planner:tpl:');
@@ -301,7 +302,7 @@ Deep work in the morning, keep the afternoon lighter`,
     updateSaveIndicator();
   }
   async function persistPlan() {
-    try { if (!state.blocks) { await storage.delete(STORAGE_KEYS.lastPlan); return; } await storage.set(STORAGE_KEYS.lastPlan, JSON.stringify({ blocks: state.blocks, unscheduled: state.unscheduled, rationale: state.rationale, engine: state.engine, flexTodos: state.flexTodos, fixedBlocks: state.fixedBlocks, planContext: state.planContext })); } catch (e) {}
+    try { if (!state.blocks) { await storage.delete(STORAGE_KEYS.lastPlan); return; } await storage.set(STORAGE_KEYS.lastPlan, JSON.stringify({ blocks: state.blocks, unscheduled: state.unscheduled, rationale: state.rationale, engine: state.engine, flexTodos: state.flexTodos, fixedBlocks: state.fixedBlocks, planContext: state.planContext, completed: [...state.completed] })); } catch (e) {}
   }
   function updateSaveIndicator() {
     const el = document.getElementById('saveStatus'); if (!el) return;
@@ -477,7 +478,9 @@ Deep work in the morning, keep the afternoon lighter`,
     let activeIdx = -1;
     if (isLive) activeIdx = blocks.findIndex(b => { const s = parseHHMM(b.start), e = parseHHMM(b.end); return s != null && e != null && now >= s && now < e; });
     const rows = blocks.map((b, i) => renderBlockRow(b, i, { isLive, now, activeIdx })).join('');
+    const doneCount = blocks.filter(b => b.type === 'todo' && state.completed.has(b.itemId)).length;
     const chips = [`${todoCount} task${todoCount === 1 ? '' : 's'} placed`];
+    if (doneCount) chips.push(`${doneCount} done`);
     if (pinCount) chips.push(`${pinCount} pinned`);
     if (focusCount) chips.push(`${focusCount} focus hold${focusCount === 1 ? '' : 's'}`);
     if (breakCount) chips.push(`${breakCount} break${breakCount === 1 ? '' : 's'}`);
@@ -503,7 +506,8 @@ Deep work in the morning, keep the afternoon lighter`,
     const isPast = live.isLive && e <= live.now;
     const isActive = live.isLive && i === live.activeIdx;
     const isEditing = isEditable && state.editingItemId === b.itemId;
-    const cardCls = `block-card ${tagCls} ${isEditable ? 'is-editable' : ''} ${canIcs ? 'is-downloadable' : ''} ${isTodo ? 'is-flex' : ''} ${isBreak ? 'is-break' : ''} ${isBusy ? 'is-busy' : ''} ${isFocus ? 'is-focus' : ''} ${isFree ? 'is-freetime' : ''} ${isActive ? 'is-active' : ''} ${isPast ? 'is-past' : ''}`;
+    const isDone = isTodo && state.completed.has(b.itemId);
+    const cardCls = `block-card ${tagCls} ${isEditable ? 'is-editable' : ''} ${canIcs ? 'is-downloadable' : ''} ${isTodo ? 'is-flex' : ''} ${isBreak ? 'is-break' : ''} ${isBusy ? 'is-busy' : ''} ${isFocus ? 'is-focus' : ''} ${isFree ? 'is-freetime' : ''} ${isActive ? 'is-active' : ''} ${isPast ? 'is-past' : ''} ${isDone ? 'is-completed' : ''}`;
     let metaHtml = '';
     if (isBreak || isFree) metaHtml = '';
     else if (isFocus) metaHtml = `<div class="text-sm text-slate-500 mt-1">${dur} min \u00b7 <span class="chip">focus hold</span></div>`;
@@ -517,10 +521,11 @@ Deep work in the morning, keep the afternoon lighter`,
     const nowBadge = isActive ? `<span class="now-badge"><span class="pulse-dot"></span>NOW</span>` : '';
     const handle = isTodo ? `<span class="drag-handle" aria-hidden="true" title="Drag to reorder"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></span>` : '';
     const icsBtn = canIcs ? `<button class="block-ics" data-block-ics="${b.itemId}" title="Save this to calendar (.ics)" aria-label="Download ${escapeHTML(b.title)} as a calendar file"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>` : '';
+    const completeBtn = isTodo ? `<button class="complete-btn${isDone ? ' is-done' : ''}" data-complete="${b.itemId}" title="${isDone ? 'Mark incomplete' : 'Mark complete'}" aria-label="${isDone ? 'Mark incomplete' : 'Mark complete'}: ${escapeHTML(b.title)}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></button>` : '';
     const editForm = isEditing ? renderEditor(b) : '';
     const a11y = isEditable ? `role="button" tabindex="0" aria-label="${escapeHTML(b.title)}, ${b.start} to ${b.end}, ${dur} minutes. Activate to edit." data-block-edit="${b.itemId}"` : '';
     const dragAttrs = isTodo ? `draggable="true" data-item-id="${b.itemId}"` : '';
-    return `<div class="block-row flex items-start gap-4" ${dragAttrs} style="animation-delay: ${i * 40}ms"><div class="time-col"><div>${escapeHTML(b.start)}</div><div class="time-sep">\u00b7</div><div class="time-end">${escapeHTML(b.end)}</div></div><div class="flex-1 min-w-0"><div class="${cardCls}" ${a11y} style="min-height: ${height}px"><div class="flex items-start gap-2">${handle}<div class="block-title font-semibold text-slate-900 ${titleSize} flex-1 min-w-0">${titleHtml}</div>${icsBtn}${nowBadge}</div>${metaHtml}${progressHtml}</div>${editForm}</div></div>`;
+    return `<div class="block-row flex items-start gap-4" ${dragAttrs} style="animation-delay: ${i * 40}ms"><div class="time-col"><div>${escapeHTML(b.start)}</div><div class="time-sep">\u00b7</div><div class="time-end">${escapeHTML(b.end)}</div></div><div class="flex-1 min-w-0"><div class="${cardCls}" ${a11y} style="min-height: ${height}px"><div class="flex items-start gap-2">${handle}<div class="block-title font-semibold text-slate-900 ${titleSize} flex-1 min-w-0">${titleHtml}</div>${icsBtn}${completeBtn}${nowBadge}</div>${metaHtml}${progressHtml}</div>${editForm}</div></div>`;
   }
   function renderEditor(b) {
     const id = b.itemId;
@@ -662,14 +667,15 @@ Deep work in the morning, keep the afternoon lighter`,
   function bindPlanEvents() {
     const undoBtn = document.getElementById('undoBtn'); if (undoBtn) undoBtn.addEventListener('click', undo);
     const clearBtn = document.getElementById('clearPlanBtn');
-    if (clearBtn) clearBtn.addEventListener('click', () => { state.blocks = null; state.rationale = null; state.planContext = null; state.editingItemId = null; state.unscheduled = []; state.engine = null; state.flexTodos = null; state.fixedBlocks = null; state.undo = []; persistPlan(); patchPlan(); updateDerived(); });
+    if (clearBtn) clearBtn.addEventListener('click', () => { state.blocks = null; state.rationale = null; state.planContext = null; state.editingItemId = null; state.unscheduled = []; state.engine = null; state.flexTodos = null; state.fixedBlocks = null; state.undo = []; state.completed = new Set(); persistPlan(); patchPlan(); updateDerived(); });
     const downloadBtn = document.getElementById('downloadBtn');
     if (downloadBtn) downloadBtn.addEventListener('click', () => { if (!state.blocks || !state.planContext) return; downloadICS(buildICS(state.blocks, state.planContext.date), `day-planner-${state.planContext.date}.ics`); showToast('Full day downloaded'); });
     const extendBtn = document.getElementById('extendBtn'); if (extendBtn) extendBtn.addEventListener('click', extendDayToFit);
     document.querySelectorAll('[data-block-ics]').forEach(el => el.addEventListener('click', e => { e.stopPropagation(); const b = state.blocks.find(x => x.itemId === el.dataset.blockIcs); if (b) downloadSingleICS(b); }));
+    document.querySelectorAll('[data-complete]').forEach(el => el.addEventListener('click', e => { e.stopPropagation(); const id = el.dataset.complete; if (state.completed.has(id)) state.completed.delete(id); else state.completed.add(id); persistPlan(); patchPlan(); }));
     document.querySelectorAll('[data-block-edit]').forEach(el => {
       const open = () => { const id = el.dataset.blockEdit; state.editingItemId = state.editingItemId === id ? null : id; patchPlan(); };
-      el.addEventListener('click', e => { if (e.target.closest('[data-block-action]') || e.target.closest('[data-block-ics]')) return; open(); });
+      el.addEventListener('click', e => { if (e.target.closest('[data-block-action]') || e.target.closest('[data-block-ics]') || e.target.closest('[data-complete]')) return; open(); });
       el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
     });
     document.querySelectorAll('[data-block-action]').forEach(el => el.addEventListener('click', e => { e.stopPropagation(); handleBlockAction(el.dataset.itemId, el.dataset.blockAction); }));
@@ -815,6 +821,7 @@ Durations are minutes; times are 24-hour. Use null for tag when unclear. Include
     state.blocks = blocks; state.unscheduled = unscheduled; state.rationale = rationale; state.engine = engine;
     state.flexTodos = todos; state.fixedBlocks = fixed;
     state.planContext = { date: state.date, startTime: state.startTime, endTime: state.endTime, calendarAnchors: calAnchors };
+    state.completed = new Set();
     state.loading = false;
     persistPlan(); patchError(); patchPlan(); updateDerived();
     setTimeout(() => { const el = document.querySelector('#planRegion section'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
